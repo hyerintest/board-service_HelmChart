@@ -1,0 +1,1069 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.tempo.name }}-ingester
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: ingester
+    app.kubernetes.io/part-of: memberlist
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+      app.kubernetes.io/instance: tempo
+      app.kubernetes.io/component: ingester
+  maxUnavailable: 1
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.tempo.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: false
+imagePullSecrets:
+  - name: turaco-harbor-registry
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tempo.name }}-compactor
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: compactor
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm  
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-metrics
+      port: {{ .Values.tempo.port_number }}
+      targetPort: {{ .Values.tempo.port_number }}
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: compactor
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tempo.name }}-distributor-discovery
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: distributor
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+    prometheus.io/service-monitor: "false"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: http-metrics
+      port: {{ .Values.tempo.port_number }}
+      targetPort: http-metrics
+    - name: distributor-jaeger-thrift-compact
+      port: 6831
+      protocol: UDP
+      targetPort: jaeger-compact
+    - name: distributor-jaeger-thrift-binary
+      port: 6832
+      protocol: UDP
+      targetPort: jaeger-binary
+    - name: distributor-jaeger-thrift-http
+      port: 14268
+      protocol: TCP
+      targetPort: jaeger-http
+    - name: grpc-distributor-jaeger
+      port: 14250
+      protocol: TCP
+      targetPort: grpc-jaeger
+    - name: distributor-otlp-http
+      port: 4318
+      protocol: TCP
+      targetPort: otlp-http
+    - name: grpc-distributor-otlp
+      port: 4317
+      protocol: TCP
+      targetPort: grpc-otlp
+    - name: distributor-otlp-legacy
+      port: 55680
+      protocol: TCP
+      targetPort: grpc-otlp
+    - name: distributor-opencensus
+      port: 55678
+      protocol: TCP
+      targetPort: opencensus
+  selector:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: distributor
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tempo.name }}-distributor
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: distributor
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-metrics
+      port: {{ .Values.tempo.port_number }}
+      targetPort: http-metrics
+    - name: grpc
+      port: 9095
+      protocol: TCP
+      targetPort: 9095
+    - name: distributor-jaeger-thrift-compact
+      port: 6831
+      protocol: UDP
+      targetPort: jaeger-compact
+    - name: distributor-jaeger-thrift-binary
+      port: 6832
+      protocol: UDP
+      targetPort: jaeger-binary
+    - name: distributor-jaeger-thrift-http
+      port: 14268
+      protocol: TCP
+      targetPort: jaeger-http
+    - name: grpc-distributor-jaeger
+      port: 14250
+      protocol: TCP
+      targetPort: grpc-jaeger
+    - name: distributor-otlp-http
+      port: 4318
+      protocol: TCP
+      targetPort: otlp-http
+    - name: grpc-distributor-otlp
+      port: 4317
+      protocol: TCP
+      targetPort: grpc-otlp
+    - name: distributor-otlp-legacy
+      port: 55680
+      protocol: TCP
+      targetPort: grpc-otlp
+    - name: distributor-opencensus
+      port: 55678
+      protocol: TCP
+      targetPort: opencensus
+  selector:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: distributor
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tempo.name }}-gossip-ring
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: gossip-ring
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: gossip-ring
+      port: 7946
+      protocol: TCP
+      targetPort: http-memberlist
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/part-of: memberlist
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tempo.name }}-ingester-discovery
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: ingester
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+    prometheus.io/service-monitor: "false"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: http-metrics
+      port: {{ .Values.tempo.port_number }}
+      protocol: TCP
+      targetPort: {{ .Values.tempo.port_number }}
+    - name: grpc
+      port: 9095
+      protocol: TCP
+      targetPort: 9095
+  selector:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: ingester
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tempo.name }}-ingester
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: ingester
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+    - name: http-metrics
+      port: {{ .Values.tempo.port_number }}
+      protocol: TCP
+      targetPort: {{ .Values.tempo.port_number }}
+    - name: grpc
+      port: 9095
+      protocol: TCP
+      targetPort: 9095
+  selector:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: ingester
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tempo.name }}-memcached
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: memcached
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - name: memcached-client
+    port: 11211
+    targetPort: 11211
+  - name: http-metrics
+    port: 9150
+    targetPort: http-metrics
+  selector:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: memcached
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tempo.name }}-querier
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: querier
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+    - name: http-metrics
+      port: {{ .Values.tempo.port_number }}
+      protocol: TCP
+      targetPort: {{ .Values.tempo.port_number }}
+    - name: grpc
+      port: 9095
+      protocol: TCP
+      targetPort: 9095
+  selector:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: querier
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tempo.name }}-query-frontend-discovery
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: query-frontend
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: http
+      port: {{ .Values.tempo.port_number }}
+      targetPort: {{ .Values.tempo.port_number }}
+    - name: grpc
+      port: 9095
+      protocol: TCP
+      targetPort: 9095
+    - name: grpclb
+      port: 9096
+      protocol: TCP
+      targetPort: grpc
+  selector:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: query-frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tempo.name }}-query-frontend
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: query-frontend
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-metrics
+      port: {{ .Values.tempo.port_number }}
+      targetPort: {{ .Values.tempo.port_number }}
+    - name: grpc
+      port: 9095
+      protocol: TCP
+      targetPort: 9095
+  selector:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: query-frontend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.tempo.name }}-compactor
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: compactor
+    app.kubernetes.io/part-of: memberlist
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+    turaco-app: {{ .Values.tempo.name }}
+spec:
+  minReadySeconds: 10
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+      app.kubernetes.io/instance: tempo
+      app.kubernetes.io/component: compactor
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: tempo-distributed-1.2.2
+        app.kubernetes.io/name: tempo
+        app.kubernetes.io/instance: tempo
+        app.kubernetes.io/version: "2.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: compactor
+        app.kubernetes.io/part-of: memberlist
+        turaco-app: {{ .Values.tempo.name }}
+      annotations:
+        checksum/config: 0a18cd12b15de43299e96bb978c41729e890b669e9e3391afd810055f0420b9a
+    spec:
+      serviceAccountName: {{ .Values.tempo.name }}
+      securityContext:
+        fsGroup: 1000
+      enableServiceLinks: false
+      containers:
+        - args:
+            - -target=compactor
+            - -config.file=/conf/tempo.yaml
+            - -mem-ballast-size-mbs=1024
+          image: registry.turacocloud.com/turaco-common/grafana/tempo:2.0.0
+          imagePullPolicy: IfNotPresent
+          name: compactor
+          ports:
+            - containerPort: {{ .Values.tempo.port_number }}
+              name: http-metrics
+            - containerPort: 7946
+              name: http-memberlist
+          resources:
+            limits:
+              cpu: 0.25
+              memory: 256Mi
+            requests:
+              cpu: 0.25
+              memory: 256Mi  
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+          volumeMounts:
+            - mountPath: /conf
+              name: config
+            - mountPath: /var/tempo
+              name: tempo-compactor-store
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Values.tempo.name }}-config
+            items:
+              - key: "tempo.yaml"
+                path: "tempo.yaml"
+              - key: "overrides.yaml"
+                path: "overrides.yaml"
+        - name: tempo-compactor-store
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.tempo.name }}-distributor
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: distributor
+    app.kubernetes.io/part-of: memberlist
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+    turaco-app: {{ .Values.tempo.name }}
+spec:
+  minReadySeconds: 10
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+      app.kubernetes.io/instance: tempo
+      app.kubernetes.io/component: distributor
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: tempo-distributed-1.2.2
+        app.kubernetes.io/name: tempo
+        app.kubernetes.io/instance: tempo
+        app.kubernetes.io/version: "2.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: distributor
+        app.kubernetes.io/part-of: memberlist
+        turaco-app: {{ .Values.tempo.name }}
+      annotations:
+        checksum/config: 0a18cd12b15de43299e96bb978c41729e890b669e9e3391afd810055f0420b9a
+    spec:
+      serviceAccountName: {{ .Values.tempo.name }}
+      securityContext:
+        fsGroup: 1000
+      enableServiceLinks: false
+      containers:
+        - args:
+            - -target=distributor
+            - -config.file=/conf/tempo.yaml
+            - -mem-ballast-size-mbs=1024
+          image: registry.turacocloud.com/turaco-common/grafana/tempo:2.0.0
+          imagePullPolicy: IfNotPresent
+          name: distributor
+          ports:
+            - containerPort: 7946
+              name: http-memberlist
+              protocol: TCP
+            - containerPort: {{ .Values.tempo.port_number }}
+              name: http-metrics
+            - containerPort: 6831
+              name: jaeger-compact
+              protocol: UDP
+            - containerPort: 6832
+              name: jaeger-binary
+              protocol: UDP
+            - containerPort: 14268
+              name: jaeger-http
+              protocol: TCP
+            - containerPort: 14250
+              name: grpc-jaeger
+              protocol: TCP
+            - containerPort: 4318
+              name: otlp-http
+              protocol: TCP
+            - containerPort: 4317
+              name: grpc-otlp
+              protocol: TCP
+            - containerPort: 55678
+              name: opencensus
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          resources:
+			{{- if and (ne .Values.tempo.resources.limits.memory "0Mi") (ne .Values.tempo.resources.limits.memory "0Gi") }}
+            limits:
+              cpu: {{ .Values.tempo.resources.limits.cpu }}
+              memory: {{ .Values.tempo.resources.limits.memory }}
+            {{- end }}
+            requests:
+              cpu: {{ .Values.tempo.resources.requests.cpu }}
+              memory: {{ .Values.tempo.resources.requests.memory }}  
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+          volumeMounts:
+            - mountPath: /conf
+              name: config
+            - mountPath: /var/tempo
+              name: tempo-distributor-store
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: failure-domain.beta.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: tempo
+              app.kubernetes.io/instance: tempo
+              app.kubernetes.io/component: distributor
+        
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: tempo
+                  app.kubernetes.io/instance: tempo
+                  app.kubernetes.io/component: distributor
+              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: tempo
+                    app.kubernetes.io/instance: tempo
+                    app.kubernetes.io/component: distributor
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+        
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Values.tempo.name }}-config
+            items:
+              - key: "tempo.yaml"
+                path: "tempo.yaml"
+              - key: "overrides.yaml"
+                path: "overrides.yaml"
+        - name: tempo-distributor-store
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.tempo.name }}-querier
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: querier
+    app.kubernetes.io/part-of: memberlist
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+    turaco-app: {{ .Values.tempo.name }}
+spec:
+  minReadySeconds: 10
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+      app.kubernetes.io/instance: tempo
+      app.kubernetes.io/component: querier
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: tempo-distributed-1.2.2
+        app.kubernetes.io/name: tempo
+        app.kubernetes.io/instance: tempo
+        app.kubernetes.io/version: "2.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: querier
+        app.kubernetes.io/part-of: memberlist
+        turaco-app: {{ .Values.tempo.name }}
+      annotations:
+        checksum/config: 0a18cd12b15de43299e96bb978c41729e890b669e9e3391afd810055f0420b9a
+    spec:
+      serviceAccountName: {{ .Values.tempo.name }}
+      securityContext:
+        fsGroup: 1000
+      enableServiceLinks: false
+      containers:
+        - args:
+            - -target=querier
+            - -config.file=/conf/tempo.yaml
+            - -mem-ballast-size-mbs=1024
+          image: registry.turacocloud.com/turaco-common/grafana/tempo:2.0.0
+          imagePullPolicy: IfNotPresent
+          name: querier
+          ports:
+            - containerPort: 7946
+              name: http-memberlist
+              protocol: TCP
+            - containerPort: {{ .Values.tempo.port_number }}
+              name: http-metrics
+          resources:
+            limits:
+              cpu: 0.25
+              memory: 256Mi
+            requests:
+              cpu: 0.25
+              memory: 256Mi  
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+          volumeMounts:
+            - mountPath: /conf
+              name: config
+            - mountPath: /var/tempo
+              name: tempo-querier-store
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: failure-domain.beta.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: tempo
+              app.kubernetes.io/instance: tempo
+              app.kubernetes.io/component: querier
+        
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: tempo
+                  app.kubernetes.io/instance: tempo
+                  app.kubernetes.io/component: querier
+              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: tempo
+                    app.kubernetes.io/instance: tempo
+                    app.kubernetes.io/component: querier
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+        
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Values.tempo.name }}-config
+            items:
+              - key: "tempo.yaml"
+                path: "tempo.yaml"
+              - key: "overrides.yaml"
+                path: "overrides.yaml"
+        - name: tempo-querier-store
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.tempo.name }}-query-frontend
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: query-frontend
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+    turaco-app: {{ .Values.tempo.name }}
+spec:
+  minReadySeconds: 10
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+      app.kubernetes.io/instance: tempo
+      app.kubernetes.io/component: query-frontend
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: tempo-distributed-1.2.2
+        app.kubernetes.io/name: tempo
+        app.kubernetes.io/instance: tempo
+        app.kubernetes.io/version: "2.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: query-frontend
+        turaco-app: {{ .Values.tempo.name }}
+      annotations:
+        checksum/config: 0a18cd12b15de43299e96bb978c41729e890b669e9e3391afd810055f0420b9a
+    spec:
+      serviceAccountName: {{ .Values.tempo.name }}
+      securityContext:
+        fsGroup: 1000
+      enableServiceLinks: false
+      containers:
+        - args:
+            - -target=query-frontend
+            - -config.file=/conf/tempo.yaml
+            - -mem-ballast-size-mbs=1024
+          image: registry.turacocloud.com/turaco-common/grafana/tempo:2.0.0
+          imagePullPolicy: IfNotPresent
+          name: query-frontend
+          ports:
+            - containerPort: {{ .Values.tempo.port_number }}
+              name: http-metrics
+            - containerPort: 9095
+              name: grpc
+          resources:
+            limits:
+              cpu: 0.25
+              memory: 256Mi
+            requests:
+              cpu: 0.25
+              memory: 256Mi  
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+          volumeMounts:
+            - mountPath: /conf
+              name: config
+            - mountPath: /var/tempo
+              name: tempo-queryfrontend-store
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: failure-domain.beta.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: tempo
+              app.kubernetes.io/instance: tempo
+              app.kubernetes.io/component: query-frontend
+        
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: tempo
+                  app.kubernetes.io/instance: tempo
+                  app.kubernetes.io/component: query-frontend
+              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: tempo
+                    app.kubernetes.io/instance: tempo
+                    app.kubernetes.io/component: query-frontend
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+        
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Values.tempo.name }}-config
+            items:
+              - key: "tempo.yaml"
+                path: "tempo.yaml"
+              - key: "overrides.yaml"
+                path: "overrides.yaml"
+        - name: tempo-queryfrontend-store
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.tempo.name }}-ingester
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: ingester
+    app.kubernetes.io/part-of: memberlist
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+    turaco-app: {{ .Values.tempo.name }}
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+      app.kubernetes.io/instance: tempo
+      app.kubernetes.io/component: ingester
+  serviceName: ingester
+  podManagementPolicy: Parallel
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: tempo-distributed-1.2.2
+        app.kubernetes.io/name: tempo
+        app.kubernetes.io/instance: tempo
+        app.kubernetes.io/version: "2.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: ingester
+        app.kubernetes.io/part-of: memberlist
+        turaco-app: {{ .Values.tempo.name }}
+      annotations:
+        checksum/config: 0a18cd12b15de43299e96bb978c41729e890b669e9e3391afd810055f0420b9a
+    spec:
+      serviceAccountName: {{ .Values.tempo.name }}
+      securityContext:
+        fsGroup: 1000
+      enableServiceLinks: false
+      containers:
+        - args:
+            - -target=ingester
+            - -config.file=/conf/tempo.yaml
+            - -mem-ballast-size-mbs=1024
+          image: registry.turacocloud.com/turaco-common/grafana/tempo:2.0.0
+          imagePullPolicy: IfNotPresent
+          name: ingester
+          ports:
+            - name: grpc
+              containerPort: 9095
+            - name: http-memberlist
+              containerPort: 7946
+            - name: http-metrics
+              containerPort: {{ .Values.tempo.port_number }}
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: 0.25
+              memory: 256Mi
+            requests:
+              cpu: 0.25
+              memory: 256Mi  
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+          volumeMounts:
+            - mountPath: /conf
+              name: config
+            - mountPath: /var/tempo
+              name: data
+      terminationGracePeriodSeconds: 300
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: failure-domain.beta.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: tempo
+              app.kubernetes.io/instance: tempo
+              app.kubernetes.io/component: ingester
+        
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: tempo
+                    app.kubernetes.io/instance: tempo
+                    app.kubernetes.io/component: ingester
+                topologyKey: kubernetes.io/hostname
+            - weight: 75
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: tempo
+                    app.kubernetes.io/instance: tempo
+                    app.kubernetes.io/component: ingester
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+        
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Values.tempo.name }}-config
+            items:
+              - key: "tempo.yaml"
+                path: "tempo.yaml"
+              - key: "overrides.yaml"
+                path: "overrides.yaml"
+        - name: data
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.tempo.name }}-memcached
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: tempo-distributed-1.2.2
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/component: memcached
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/managed-by: Helm
+    turaco-app: {{ .Values.tempo.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+      app.kubernetes.io/instance: tempo
+      app.kubernetes.io/component: memcached
+  serviceName: memcached
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: tempo-distributed-1.2.2
+        app.kubernetes.io/name: tempo
+        app.kubernetes.io/instance: tempo
+        app.kubernetes.io/component: memcached
+        app.kubernetes.io/version: "2.0.0"
+        app.kubernetes.io/managed-by: Helm
+        turaco-app: {{ .Values.tempo.name }}
+    spec:
+      serviceAccountName: {{ .Values.tempo.name }}
+      securityContext:
+        fsGroup: 1000
+      enableServiceLinks: false
+      containers:
+        - image: registry.turacocloud.com/turaco-common/memcached:1.5.17
+          imagePullPolicy: IfNotPresent
+          name: memcached
+          ports:
+            - containerPort: 11211
+              name: client
+          resources:
+            limits:
+              cpu: 0.5
+              memory: 500Mi
+            requests:
+              cpu: 0.5
+              memory: 500Mi  
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: failure-domain.beta.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: tempo
+              app.kubernetes.io/instance: tempo
+              app.kubernetes.io/component: memcached
+        
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: tempo
+                  app.kubernetes.io/instance: tempo
+                  app.kubernetes.io/component: memcached
+              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: tempo
+                    app.kubernetes.io/instance: tempo
+                    app.kubernetes.io/component: memcached
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+        
+  updateStrategy:
+    type: RollingUpdate

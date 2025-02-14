@@ -1,0 +1,29 @@
+turaco:
+  secret:
+    registry:
+      name: turaco-harbor-registry
+      url: registry.turacocloud.com
+      username: turaco
+      password: Turaco22#
+      email: info@twolinecode.com
+grafana:
+  name: grafana-service-kr7n0mvwsb
+  port_number: 80
+  user:
+    id: "YWRtaW4="
+    password: "VHVyYWNvMTIh"
+  datasource:
+    loki:
+      name: loki-service-k5mhp7bwwd
+      port_number: 3100
+    prometheus:
+      name: 
+      port_number: 80
+  resources:
+    requests:
+      memory: -@requestMemory@-
+      cpu: -@requestCpu@-
+    limits:
+      memory: -@limitsMemory@-
+      cpu: -@limitsCpu@-
+namespace: -@namespace@-

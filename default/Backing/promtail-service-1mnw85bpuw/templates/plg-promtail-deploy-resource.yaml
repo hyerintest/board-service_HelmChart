@@ -1,0 +1,167 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.promtail.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: promtail-6.8.2
+    app.kubernetes.io/name: promtail
+    app.kubernetes.io/instance: loki-stack
+    app.kubernetes.io/version: "2.7.2"
+    app.kubernetes.io/managed-by: Helm
+    app: {{ .Values.promtail.name }}
+imagePullSecrets:
+  - name: turaco-harbor-registry
+---
+# Source: loki-stack/charts/promtail/templates/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Values.promtail.name }}
+  labels:
+    helm.sh/chart: promtail-6.8.2
+    app.kubernetes.io/name: promtail
+    app.kubernetes.io/instance: loki-stack
+    app.kubernetes.io/version: "2.7.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs:
+      - get
+      - watch
+      - list
+---
+# Source: loki-stack/charts/promtail/templates/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Values.promtail.name }}
+  labels:
+    helm.sh/chart: promtail-6.8.2
+    app.kubernetes.io/name: promtail
+    app.kubernetes.io/instance: loki-stack
+    app.kubernetes.io/version: "2.7.2"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.promtail.name }}
+    namespace: {{ .Values.namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Values.promtail.name }}
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: loki-stack/charts/promtail/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Values.promtail.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    helm.sh/chart: promtail-6.8.2
+    app.kubernetes.io/name: promtail
+    app.kubernetes.io/instance: loki-stack
+    app.kubernetes.io/version: "2.7.2"
+    app.kubernetes.io/managed-by: Helm
+    app: {{ .Values.promtail.name }}
+    turaco-app: {{ .Values.promtail.name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: promtail
+      app.kubernetes.io/instance: loki-stack
+  updateStrategy:
+    {}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: promtail
+        app.kubernetes.io/instance: loki-stack
+        app: {{ .Values.promtail.name }}
+        turaco-app: {{ .Values.promtail.name }}
+      annotations:
+        checksum/config: 8a021ff2148b0c70e4258fcf31143f3b563940e03dab6c5df136a30fafbbd671
+    spec:
+      serviceAccountName: {{ .Values.promtail.name }}
+      enableServiceLinks: true
+      securityContext:
+        runAsGroup: 0
+        runAsUser: 0
+      containers:
+        - name: promtail
+          image: "registry.turacocloud.com/turaco-common/grafana/promtail:2.7.2-amd64"
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-config.file=/etc/promtail/promtail.yaml"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/promtail
+            - mountPath: /run/promtail
+              name: run
+            - mountPath: /var/lib/docker/containers
+              name: containers
+              readOnly: true
+            - mountPath: /var/log/pods
+              name: pods
+              readOnly: true
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          ports:
+            - name: http-metrics
+              containerPort: {{ .Values.promtail.http_listen_port }}
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: '/ready'
+              port: http-metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            requests:
+              cpu: {{ .Values.promtail.resources.requests.cpu }}
+              memory: {{ .Values.promtail.resources.requests.memory }}
+            {{- if and (ne .Values.promtail.resources.limits.memory "0Mi") (ne .Values.promtail.resources.limits.memory "0Gi") }}
+            limits:
+              memory: {{ .Values.promtail.resources.limits.memory }}
+              cpu: {{ .Values.promtail.resources.limits.cpu }}
+            {{- end }}
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists
+      volumes:
+        - name: config
+          secret:
+            secretName: {{ .Values.promtail.name }}
+        - hostPath:
+            path: /run/promtail
+          name: run
+        - hostPath:
+            path: /var/lib/docker/containers
+          name: containers
+        - hostPath:
+            path: /var/log/pods
+          name: pods
+---

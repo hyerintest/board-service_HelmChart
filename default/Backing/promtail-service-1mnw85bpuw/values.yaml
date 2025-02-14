@@ -1,0 +1,23 @@
+turaco:
+  secret:
+    registry:
+      name: turaco-harbor-registry
+      url: registry.turacocloud.com
+      username: turaco
+      password: Turaco22#
+      email: info@twolinecode.com
+namespace: -@namespace@-
+promtail:
+  name: promtail-service-1mnw85bpuw
+  log_level: info
+  http_listen_port: 3101
+  resources:
+    requests:
+      memory: -@requestMemory@-
+      cpu: -@requestCpu@-
+    limits:
+      memory: -@limitsMemory@-
+      cpu: -@limitsCpu@-
+  loki:
+    url: loki-service-k5mhp7bwwd
+    port: 3100

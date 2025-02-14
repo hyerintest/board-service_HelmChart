@@ -1,0 +1,11 @@
+namespace: -@namespace@-
+tempo:
+  name: tempo-service-1eeekllozm
+  port_number: 3100
+  resources:
+    requests:
+      memory: -@requestMemory@-
+      cpu: -@requestCpu@-
+    limits:
+      memory: -@limitsMemory@-
+      cpu: -@limitsCpu@-

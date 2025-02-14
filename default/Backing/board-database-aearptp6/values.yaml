@@ -1,0 +1,65 @@
+service:
+  port:
+    name: http
+    l4_protocol: TCP
+    port: 3306
+    targetPort: 3306
+  label: board-database-aearptp6
+  name: board-database-aearptp6
+  selector: board-database-aearptp6
+  type:
+  - ClusterIP
+  - NodePort
+statefulset:
+  name: board-database-aearptp6
+  spec:
+    name: board-database-aearptp6
+    servicename: board-database-aearptp6
+  replicas: -@replicas@-
+  container:
+    name: board-database-aearptp6
+    port: 3306
+  volume:
+    name: pvc-board-database-aearptp6
+  resource:
+    request:
+      memory: -@requestMemory@-
+      cpu: -@requestCpu@-
+    limits:
+      memory: -@limitsMemory@-
+      cpu: -@limitsCpu@-
+  hpa:
+    name: hpa-board-database-aearptp6
+    minReplicas: -@minReplicas@-
+    maxReplicas: -@maxReplicas@-
+    cpu: -@cpuAutoScale@-
+    memory: -@memAutoScale@-
+namespace: -@namespace@-
+mysql:
+  configmap:
+    name: config-board-database-aearptp6
+  secret:
+    name: secret-board-database-aearptp6
+    username: board
+    password: "Turaco12!"
+    root_password: "Turaco12!"
+    database: board
+    dbhost: board-database-aearptp6
+    port: 3306
+  statefulset:
+    name: board-database-aearptp6
+    image:
+      url: registry.turacocloud.com/turaco-common/mysql:8.0.32
+secret:
+  name: 
+  registry:
+    name: regsecret
+    url: -@imageRepoName@-
+    username: -@accessKey@-
+    password: -@secretKey@-
+    email: info@twolinecode.com
+pvc:
+  name: pvc-board-database-aearptp6
+  storageClass: tlc-block-sc
+  size: 5Gi
+  accessMode: ReadWriteOnce
